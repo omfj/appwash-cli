@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
 import requests
+import sys
+import os
 from datetime import datetime
 from rich.console import Console
 from rich.prompt import Prompt
@@ -102,14 +104,27 @@ def print_machines():
         else:
             console.print(f"{machine_id} - {machine_state}")
 
+def reserve():
+    print("What machine do you want to reserve")
+
 
 def print_help():
     console.print("Available commands:")
     console.print("'list' - List all machines")
     console.print("'stop' - Stop the program")
+    console.print("'restart' - Restarts the program")
     console.print("'help' - Print this help")
     console.print("'whoami' - Print your account information")
     console.print("'login' - Login to the appwash service")
+    console.print("'reserve' - Reserve a machine")
+    console.print("'clear' - Clears the screen")
+
+
+def restart():
+    os.execv(sys.argv[0], sys.argv)
+
+def clear():
+    os.system("clear")
 
 
 def exec_command(command):
@@ -126,8 +141,14 @@ def exec_command(command):
         case "stop" | "exit" | "quit" | "q" | "e":
             print("Bye bye!")
             exit()
+        case "restart" | "r":
+            restart()
+        case "clear":
+            clear()
         case "help":
             print_help()
+        case "reserve" | "re":
+            reserve()
         case "whoami":
             if "--secrets" in args:
                 print_whoami(True)
@@ -143,8 +164,11 @@ def exec_command(command):
 
 
 def main():
+    console.print("Welcome to AppWash CLI!", style="bold green")
+    console.print("Type 'help' for commands.", end="\n\n")
     while (command := input(f">>> ")):
         exec_command(command)
+        print() # For new line after executed command
 
 
 if __name__ == "__main__":
