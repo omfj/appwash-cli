@@ -124,7 +124,13 @@ def print_machines():
             console.print(f"{machine_id} - {machine_state}")
 
 def reserve():
-    print("What machine do you want to reserve")
+    if not logged_in:
+        console.print("You are not logged in.")
+        return
+
+    console.print("What machine do you want to reserve?")
+    machine_id = prompt.ask("Machine ID: ")
+    reserve_headers = {}
 
 
 def print_help():
