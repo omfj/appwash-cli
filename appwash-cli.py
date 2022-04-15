@@ -13,6 +13,9 @@ from rich.prompt import Prompt
 # print_help
 # print_machines
 # print_whoami
+# restart
+# clear
+# logout
 
 
 # Initialize console
@@ -58,17 +61,33 @@ def login(*args):
 
     # Get the login token
     login_response = requests.post("https://www.involtum-services.com/api-rest/login", headers=login_headers, data=login_data, verify=True)
+    login_response_json = login_response.json()
 
     # Get the token from the response, if it doesn't exist, print the error.
     try:
         console.print("Login successful.")
         logged_in = True
-        login_response_json = login_response.json()
         login_token = login_response_json["login"]["token"]
         account_info["token"] = login_token
     except Exception:
-        console.print(f"Error {login_response.status_code}: Could not get login token")
+        console.print(f"Error {login_response_json['errorCode']}: Could not get login token")
+
+        if login_response_json["errorCode"] == 63:
+            console.print("Please check your email and password.")
+
         exit()
+
+
+def logout():
+    global logged_in, account_info
+
+    if not logged_in:
+        console.print("You are already logged out.")
+        return
+
+    logged_in = False
+    account_info = {}
+    console.print("You are now logged out.")
 
 
 def print_machines():
@@ -128,7 +147,6 @@ def clear():
 
 
 def exec_command(command):
-
     try:
         command, *args = command.split()
     except Exception:
@@ -159,6 +177,8 @@ def exec_command(command):
                 login(args[0], args[1])
             except IndexError:
                 login()
+        case "logout":
+            logout()
         case _:
             console.print("Unknown command")
 
