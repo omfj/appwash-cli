@@ -9,11 +9,11 @@ from rich.prompt import Prompt
 from rich.table import Table
 
 # Initialize console
-console = Console()
-prompt = Prompt()
+console: Console = Console()
+prompt: Prompt = Prompt()
 
-logged_in = False
-user_agent = "appwash-cli github.com/omfj/appwash-cli"
+logged_in: bool = False
+user_agent: str = "appwash-cli github.com/omfj/appwash-cli"
 
 def print_whoami(secrets=False):
     try:
@@ -34,30 +34,31 @@ def login(*args):
         console.print("You are already logged in.")
         re_login = input("Do you want to re-login? (y/N): ")
 
+    email: str; password: str
     if not logged_in or re_login == "y":
         try:
             email = args[0]
             password = args[1]
         except IndexError:
-            email = prompt.ask("Email")
-            password = prompt.ask("Password", password=True)
+            email = prompt.ask("[bold green]Email")
+            password = prompt.ask("[bold green]Password", password=True)
 
     # Headers for request
-    login_headers = { "Content-Type": "application/json", "User-Agent": f"{user_agent}", "language": "en", "platform": "appWash" }
+    login_headers: dict = { "Content-Type": "application/json", "User-Agent": f"{user_agent}", "language": "en", "platform": "appWash" }
 
     # Login data
     account_info = { "email": email, "password": password }
-    login_data = f'{{ "email": "{account_info["email"]}", "password": "{account_info["password"]}" }}'
+    login_data: str = f'{{ "email": "{account_info["email"]}", "password": "{account_info["password"]}" }}'
 
     # Get the login token
-    login_response = requests.post("https://www.involtum-services.com/api-rest/login", headers=login_headers, data=login_data, verify=True)
-    login_response_json = login_response.json()
+    login_response: list = requests.post("https://www.involtum-services.com/api-rest/login", headers=login_headers, data=login_data, verify=True)
+    login_response_json: list = login_response.json()
 
     # Get the token from the response, if it doesn't exist, print the error.
     try:
         console.print("Login successful.")
         logged_in = True
-        login_token = login_response_json["login"]["token"]
+        login_token: str = login_response_json["login"]["token"]
         account_info["token"] = login_token
     except Exception:
         console.print(f"Error {login_response_json['errorCode']}: Could not get login token")
@@ -68,7 +69,7 @@ def login(*args):
         exit()
 
 
-def logout():
+def logout() -> None:
     global logged_in, account_info
 
     if not logged_in:
@@ -80,38 +81,43 @@ def logout():
     console.print("You are now logged out.")
 
 
-def get_machines():
+def get_header() -> dict:
+    header: dict = { "User-Agent": f"{user_agent}", "Referer": "https://appwash.com/", "token": f"{account_info['token']}", "language": "NO", "platform": "appWash", "DNT": "1" }
+    return header
+
+
+def get_machines() -> list:
     # Login headers
-    headers = { "User-Agent": f"{user_agent}", "Referer": "https://appwash.com/", "token": f"{account_info['token']}", "language": "NO", "platform": "appWash", "DNT": "1" }
-    json_data = { "serviceType": "WASHING_MACHINE" }
+    headers: dict = get_header()
+    json_data: dict = { "serviceType": "WASHING_MACHINE" }
 
     # Get machine list
-    data_response = requests.post("https://www.involtum-services.com/api-rest/location/9944/connectorsv2", headers=headers, json=json_data, verify=True)
+    data_response: list = requests.post("https://www.involtum-services.com/api-rest/location/9944/connectorsv2", headers=headers, json=json_data, verify=True)
 
     # Get the machine list from the response, if it doesn't exist, print the error.
     try:
         print("Successfully fetched machine list", end="\n\n")
-        data_response_json = data_response.json()
-        machine_data = data_response_json["data"]
+        data_response_json: list = data_response.json()
+        machine_data: list = data_response_json["data"]
     except Exception:
         print(f"Error {data_response.status_code}: Could not get machine list", end="\n\n")
         return
 
     return machine_data
 
-def print_machines():
+def print_machines() -> None:
     if not logged_in:
         console.print("You are not logged in.")
         return
 
-    machine_data = get_machines()
+    machine_data: list = get_machines()
 
     for machine in machine_data:
-        machine_id = machine["externalId"]
-        machine_state = machine["state"]
+        machine_id: int = machine["externalId"]
+        machine_state: str = machine["state"]
         if machine_state in ["OCCUPIED", "STOPPABLE"]:
-            last_session_start = machine["lastSessionStart"]
-            last_session_start = datetime.fromtimestamp(last_session_start).strftime("%Y-%m-%d %H:%M:%S")
+            last_session_start: int = machine["lastSessionStart"]
+            last_session_start: str = datetime.fromtimestamp(last_session_start).strftime("%Y-%m-%d %H:%M:%S")
 
             if machine_state == "STOPPABLE":
                 console.print(f"-> {machine_id} - [bold green]{machine_state}[/bold green] - STARTED: {last_session_start}")
@@ -122,24 +128,24 @@ def print_machines():
 
 
 
-def reserve_machine():
+def reserve_machine() -> None:
     if not logged_in:
         console.print("You are not logged in.")
         return
 
     console.print("What machine do you want to reserve?")
-    machine_id = prompt.ask("Machine ID")
+    machine_id: int = prompt.ask("Machine ID")
 
-    are_you_sure = prompt.ask("Are you sure you want to reserve machine {machine_id}? (y/N)")
+    are_you_sure: str = prompt.ask("Are you sure you want to reserve machine {machine_id}? (y/N)")
 
     if not are_you_sure == "y":
         return
 
-    reserve_machine_headers = { 'User-Agent': f"{user_agent}", 'Referer': 'https://appwash.com/', 'language': 'NO', 'token': f"{account_info['token']}", 'platform': 'appWash', 'Origin': 'https://appwash.com', 'DNT': '1' }
-    reserve_machine_json_data = { 'objectId': None, 'objectLength': None, 'objectName': None, 'nrOfPersons': None, 'freeFormQuestionValue': None, 'comment': None, 'sourceChannel': 'WEBSITE' }
-    reserve_machine_response = requests.post(f'https://www.involtum-services.com/api-rest/connector/{machine_id}/start', headers=reserve_machine_headers, json=reserve_machine_json_data)
+    reserve_machine_headers: dict = get_header()
+    reserve_machine_json_data: dict = { 'objectId': None, 'objectLength': None, 'objectName': None, 'nrOfPersons': None, 'freeFormQuestionValue': None, 'comment': None, 'sourceChannel': 'WEBSITE' }
+    reserve_machine_response: list = requests.post(f'https://www.involtum-services.com/api-rest/connector/{machine_id}/start', headers=reserve_machine_headers, json=reserve_machine_json_data)
 
-    error_code = reserve_machine_response.json()["errorCode"]
+    error_code: int = reserve_machine_response.json()["errorCode"]
 
     if error_code == 0:
         console.print(f"Successfully reserved machine {machine_id}")
@@ -147,25 +153,24 @@ def reserve_machine():
         console.print(f"Error {error_code}: Could not reserve machine {machine_id}")
 
 
-def stop_machine():
+def stop_machine() -> None:
     if not logged_in:
         console.print("You are not logged in.")
         return
 
     console.print("What machine do you want to stop?")
-    machine_id = prompt.ask("Machine ID")
+    machine_id: int = prompt.ask("Machine ID")
 
-    are_you_sure = prompt.ask("Are you sure you want to stop machine {machine_id}? (y/N)")
+    are_you_sure: str = prompt.ask("Are you sure you want to stop machine {machine_id}? (y/N)")
 
     if not are_you_sure == "y":
         return
 
-    reserve_machine_headers = { 'User-Agent': f"{user_agent}", 'Referer': 'https://appwash.com/', 'language': 'NO', 'token': f"{account_info['token']}", 'platform': 'appWash', 'Origin': 'https://appwash.com', 'DNT': '1' }
-    reserve_machine_json_data = { 'objectId': None, 'objectLength': None, 'objectName': None, 'nrOfPersons': None, 'freeFormQuestionValue': None, 'comment': None, 'sourceChannel': 'WEBSITE' }
-    reserve_machine_response = requests.post(f'https://www.involtum-services.com/api-rest/connector/{machine_id}/stop', headers=reserve_machine_headers, json=reserve_machine_json_data)
+    reserve_machine_headers: dict = get_header()
+    reserve_machine_json_data: dict = { 'objectId': None, 'objectLength': None, 'objectName': None, 'nrOfPersons': None, 'freeFormQuestionValue': None, 'comment': None, 'sourceChannel': 'WEBSITE' }
+    reserve_machine_response: list = requests.post(f'https://www.involtum-services.com/api-rest/connector/{machine_id}/stop', headers=reserve_machine_headers, json=reserve_machine_json_data)
 
-    error_code = reserve_machine_response.json()["errorCode"]
-    print(reserve_machine_response.json())
+    error_code: int = reserve_machine_response.json()["errorCode"]
 
     if error_code == 0:
         console.print(f"Successfully stopped machine {machine_id}")
@@ -173,44 +178,46 @@ def stop_machine():
         console.print(f"Error {error_code}: Could not stop machine {machine_id}")
 
 
-def print_balance():
+def print_balance() -> None:
     if not logged_in:
         console.print("You are not logged in.")
         return
 
 
-    balance_headers = { 'User-Agent': f"{user_agent}", 'Referer': 'https://appwash.com/', 'token': f"{account_info['token']}", 'language': 'NO', 'platform': 'appWash', 'Origin': 'https://appwash.com', 'DNT': '1' }
+    balance_headers: dict = get_header()
 
-    response = requests.get('https://www.involtum-services.com/api-rest/account/getprepaid', headers=balance_headers)
-    response_json = response.json()
+    response: list = requests.get('https://www.involtum-services.com/api-rest/account/getprepaid', headers=balance_headers)
+    response_json: list = response.json()
 
-    error_code = response_json["errorCode"]
+    error_code: int = response_json["errorCode"]
 
     if error_code == 0:
-        balance = response_json["balanceCents"] / 100
-        currency = response_json["currency"]
+        balance: float = response_json["balanceCents"] / 100
+        currency: float = response_json["currency"]
 
         console.print(f"Your balance is {balance} {currency}.")
     else:
         console.print(f"Error {error_code}: Could not get balance.")
 
 
-def get_history():
-    history_headers = { 'User-Agent': f"{user_agent}", 'Referer': 'https://appwash.com/', 'token': f"{account_info['token']}", 'language': 'NO', 'platform': 'appWash', 'Origin': 'https://appwash.com', 'DNT': '1' }
+# Gets the purchase history and returns it
+def get_history() -> list:
+    history_headers = get_header()
 
     history_response = requests.get('https://www.involtum-services.com/api-rest/account/getprepaidmutations', headers=history_headers)
+    purchase_history = history_response.json()
 
     try:
         print("Successfully fetched purchase history.", end="\n\n")
-        purchase_history = history_response.json()
     except Exception:
-        print(f"Error {data_response.status_code}: Could not get machine list", end="\n\n")
+        print(f"Error {purchase_history['errorCode']}: Could not get machine list", end="\n\n")
         return
 
     return purchase_history
 
 
-def print_history():
+# Prints the purchase history of the user
+def print_history() -> None:
     if not logged_in:
         console.print("You are not logged in.")
         return
@@ -236,10 +243,12 @@ def print_history():
 
     console.print(purchase_history_table)
 
-def print_help():
-    console.print("Available commands:")
+
+# All available commands to the user
+def print_help() -> None:
+    console.print("Available commands:", style="bold green")
     console.print("'list'    - List all machines")
-    console.print("'stop'    - Stop the program")
+    console.print("'exit'    - Stop the program")
     console.print("'restart' - Restarts the program")
     console.print("'help'    - Print this help")
     console.print("'whoami'  - Print your account information")
@@ -251,15 +260,18 @@ def print_help():
     console.print("'clear'   - Clears the screen")
 
 
-def restart():
+# Restarts the program
+def restart() -> None:
     os.execv(sys.argv[0], sys.argv)
 
 
-def clear():
+# Clears the screen on Linux and MacOS
+def clear() -> None:
     os.system("clear")
 
 
-def exec_command(command):
+# All the available commands and their functions
+def exec_command(command) -> None:
     try:
         command, *args = command.split()
     except Exception:
@@ -302,9 +314,10 @@ def exec_command(command):
             console.print("Unknown command")
 
 
-def main():
+def main() -> None:
     console.print("Welcome to AppWash CLI!", style="bold green")
     console.print("Type 'help' for commands.", end="\n\n")
+
     while (command := input(f">>> ")):
         exec_command(command)
         print() # For new line after executed command
